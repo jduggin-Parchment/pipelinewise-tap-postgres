@@ -71,11 +71,24 @@ def prepare_columns_for_select_sql(c, md_map):
     if ('properties', c) in md_map:
         sql_datatype = md_map[('properties', c)]['sql-datatype']
         if sql_datatype.startswith('timestamp') and not sql_datatype.endswith('[]'):
+            if ('with time zone' in sql_datatype) :
+                # Timezone aware field.  Force the time to be UTC.
+                tz_offset = " at time zone 'UTC' "
+            else :
+                # Unaware timzone field.  Convert the time to system time (in our case America/Los_Angeles), and then return UTC.
+                tz_offset = " at time zone 'America/Los_Angeles' at time zone 'UTC' "
             return f'CASE ' \
                    f'WHEN {column_name} < \'0001-01-01 00:00:00.000\' ' \
                    f'OR {column_name} > \'9999-12-31 23:59:59.999\' THEN \'9999-12-31 23:59:59.999\' ' \
+                   f'ELSE {column_name} {tz_offset}' \
+                   f'END AS {column_name}'
+        elif sql_datatype == 'date':
+            return f'CASE ' \
+                   f'WHEN {column_name} < \'0001-01-01\' ' \
+                   f'OR {column_name} > \'9999-12-31\' THEN \'9999-12-31\' ' \
                    f'ELSE {column_name} ' \
                    f'END AS {column_name}'
+
     return column_name
 
 def prepare_columns_sql(c):
@@ -138,7 +151,8 @@ def selected_value_to_singer_value_impl(elem, sql_datatype):
     elif isinstance(elem, datetime.time):
         cleaned_elem = str(elem)
     elif isinstance(elem, str):
-        cleaned_elem = elem
+        # limit max text length for redshift
+        cleaned_elem = elem[:10000]
     elif isinstance(elem, decimal.Decimal):
         # NB> We cast NaN's to NULL as wal2json does not support them and now we are at least consistent(ly wrong)
         if elem.is_nan():
