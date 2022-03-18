@@ -105,6 +105,16 @@ def filter_schemas_sql_clause(sql, filer_schemas):
     in_clause = " AND n.nspname in (" + ",".join([f"'{b.strip(' ')}'" for b in filer_schemas.split(',')]) + ")"
     return sql + in_clause
 
+def redshift_super_datatype_validation(d, max_string_length = 65535):
+    if isinstance(d, dict):
+        for key, value in d.items():
+            redshift_super_datatype_validation(value)
+    elif isinstance(d, list):
+        for value in d:
+            redshift_super_datatype_validation(value)
+    else :
+        if len(str(d)) > 65535 :
+            raise Exception(f'Redshift SUPER data type does not support any field having a string length >= {max_string_length}')
 
 # pylint: disable=too-many-branches,too-many-nested-blocks,too-many-statements
 def selected_value_to_singer_value_impl(elem, sql_datatype):
@@ -114,7 +124,11 @@ def selected_value_to_singer_value_impl(elem, sql_datatype):
     elif sql_datatype == 'money':
         cleaned_elem = elem
     elif sql_datatype in ['json', 'jsonb']:
-        cleaned_elem = json.loads(elem)
+        try :
+            cleaned_elem = json.loads(elem)
+            redshift_super_datatype_validation(cleaned_elem)
+        except Exception as e :
+            cleaned_elem = {'error': {'type': 'meltano.replication', 'message': str(e)}}
     elif sql_datatype == 'time with time zone':
         # time with time zone values will be converted to UTC and time zone dropped
         # Replace hour=24 with hour=0
