@@ -128,10 +128,16 @@ def _get_select_sql(params):
     schema_name = params['schema_name']
     stream = params['stream']
     if replication_key_value:
+        if 'timestamp' in replication_key_sql_datatype :
+            # use last commit time as part of lookup for timestamps to prevent uncommitted transaction loss
+            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '6 hours' AND pg_xact_commit_timestamp(xmin) >= '{replication_key_value}'::{replication_key_sql_datatype}"
+        else :
+            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype}"
+
         select_sql = f"""
     SELECT {','.join(escaped_columns)}
     FROM {post_db.fully_qualified_table_name(schema_name, stream['table_name'])}
-    WHERE {post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype}
+    WHERE {replication_condition}
     ORDER BY {post_db.prepare_columns_sql(replication_key)} ASC"""
     else:
         # if not replication_key_value
