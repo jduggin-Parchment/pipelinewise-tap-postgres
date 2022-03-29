@@ -119,7 +119,6 @@ def sync_table(conn_info, stream, state, desired_columns, md_map):
 
     return state
 
-
 def _get_select_sql(params):
     escaped_columns = params['escaped_columns']
     replication_key = params['replication_key']
@@ -130,7 +129,9 @@ def _get_select_sql(params):
     if replication_key_value:
         if 'timestamp' in replication_key_sql_datatype :
             # use last commit time as part of lookup for timestamps to prevent uncommitted transaction loss
-            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '6 hours' AND pg_xact_commit_timestamp(xmin) >= '{replication_key_value}'::{replication_key_sql_datatype}"
+            if replication_key_sql_datatype == 'timestamp with time zone':
+                replication_key_value = f"{replication_key_value}+00:00"
+            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '8 hours' AND pg_xact_commit_timestamp(xmin) >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '15 minutes'"
         else :
             replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype}"
 
@@ -145,3 +146,4 @@ def _get_select_sql(params):
                                     FROM {post_db.fully_qualified_table_name(schema_name, stream['table_name'])}
                                     ORDER BY {post_db.prepare_columns_sql(replication_key)} ASC"""
     return select_sql
+
