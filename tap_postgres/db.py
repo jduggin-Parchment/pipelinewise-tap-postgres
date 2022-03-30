@@ -75,8 +75,10 @@ def prepare_columns_for_select_sql(c, md_map):
                 # Timezone aware field.  Force the time to be UTC.
                 tz_offset = " at time zone 'UTC' "
             else :
-                # Unaware timzone field.  Convert the time to system time (in our case America/Los_Angeles), and then return UTC.
-                tz_offset = " at time zone 'America/Los_Angeles' at time zone 'UTC' "
+                ## Unaware timzone field.  Convert the time to system time (in our case America/Los_Angeles), and then return UTC.
+                ##tz_offset = " at time zone 'America/Los_Angeles' at time zone 'UTC' "
+                # application is sometimes writing as America/Los_Angeles and sometimes as UTC.  Cannot trust any automatic conversion
+                tz_offset = ""
             return f'CASE ' \
                    f'WHEN {column_name} < \'0001-01-01 00:00:00.000\' ' \
                    f'OR {column_name} > \'9999-12-31 23:59:59.999\' THEN \'9999-12-31 23:59:59.999\' ' \
