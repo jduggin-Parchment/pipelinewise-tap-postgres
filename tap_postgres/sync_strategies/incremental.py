@@ -131,7 +131,7 @@ def _get_select_sql(params):
             # use last commit time as part of lookup for timestamps to prevent uncommitted transaction loss
             if replication_key_sql_datatype == 'timestamp with time zone' and '+' not in replication_key_value:
                 replication_key_value = f"{replication_key_value}+00:00"
-            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '9 hours' AND COALESCE(pg_xact_commit_timestamp(xmin), NOW()) >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '15 minutes'"
+            replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype} - interval '9 hours' AND COALESCE(pg_xact_commit_timestamp(xmin), NOW()) >= '{replication_key_value}'::timestamp with time zone - interval '15 minutes'"
         else :
             replication_condition = f"{post_db.prepare_columns_sql(replication_key)} >= '{replication_key_value}'::{replication_key_sql_datatype}"
 
